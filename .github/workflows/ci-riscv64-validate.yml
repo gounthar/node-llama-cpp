@@ -1,7 +1,9 @@
 name: riscv64 validation (fork only)
 
-# Fork-only: validate that the riscv64 prebuilt build works end-to-end on the
-# RISE native runner, the same recipe build.yml uses. Not part of the PR.
+# Fork-only: mirror the real build.yml flow. The dist (TypeScript build, which
+# uses rolldown and has no riscv64 binding) is produced on x86, then the riscv64
+# binary is built natively on the RISE runner from that pre-built dist. Not part
+# of the PR.
 
 on:
   push:
@@ -11,8 +13,36 @@ permissions:
   contents: read
 
 jobs:
+  build-dist:
+    name: build dist + download llama.cpp (x86)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: npm ci
+        env:
+          ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+        run: npm ci
+      - name: Build dist (tsc/rolldown on x86)
+        run: npm run build
+      - name: Download llama.cpp source
+        run: node ./dist/cli/cli.js source download --noUsageExample
+      - name: Upload dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Upload llama.cpp source
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama
+          path: llama
+
   native-rise:
     name: native riscv64 build + smoke (RISE runner)
+    needs: build-dist
     runs-on: ubuntu-24.04-riscv
     timeout-minutes: 90
     steps:
@@ -28,6 +58,16 @@ jobs:
           export PATH="$HOME/node/bin:$PATH"
           node --version
           npm --version
+      - name: Download dist artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Download llama.cpp artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: llama
+          path: llama
       - name: Install build deps (native)
         run: |
           sudo apt-get update
@@ -39,14 +79,9 @@ jobs:
         run: |
           export PATH="$HOME/node/bin:$PATH"
           npm ci
-      - name: Build CLI (tsc)
+      - name: Native riscv64 build (from pre-built dist)
         run: |
           export PATH="$HOME/node/bin:$PATH"
-          npm run build
-      - name: Source download + native riscv64 build
-        run: |
-          export PATH="$HOME/node/bin:$PATH"
-          node ./dist/cli/cli.js source download --noUsageExample
           node ./dist/cli/cli.js source build --ciMode --noUsageExample --arch riscv64 --gpu false
       - name: Verify artifact
         run: |
