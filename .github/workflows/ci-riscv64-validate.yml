@@ -28,7 +28,7 @@ jobs:
       - name: Build dist (tsc/rolldown on x86)
         run: npm run build
       - name: Download llama.cpp source
-        run: node ./dist/cli/cli.js source download --noUsageExample
+        run: node ./dist/cli/cli.js source download --release latest --skipBuild --noBundle --noUsageExample --updateBinariesReleaseMetadataAndSaveGitBundle
       - name: Upload dist
         uses: actions/upload-artifact@v4
         with:
@@ -38,7 +38,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: llama
-          path: llama
+          path: |
+            llama/binariesGithubRelease.json
+            llama/llama.cpp.info.json
+            llama/llama.cpp
+            llama/gitRelease.bundle
 
   native-rise:
     name: native riscv64 build + smoke (RISE runner)
