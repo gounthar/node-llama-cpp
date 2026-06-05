@@ -20,7 +20,7 @@ jobs:
       - name: Install Node.js (riscv64 unofficial build)
         run: |
           set -e
-          NODE_VER=v20.19.0
+          NODE_VER=v24.16.0
           curl -fsSL -o /tmp/node.tar.xz "https://unofficial-builds.nodejs.org/download/release/${NODE_VER}/node-${NODE_VER}-linux-riscv64.tar.xz"
           mkdir -p "$HOME/node"
           tar -xJf /tmp/node.tar.xz -C "$HOME/node" --strip-components=1
