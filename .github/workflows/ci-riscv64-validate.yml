@@ -1,0 +1,55 @@
+name: riscv64 validation (fork only)
+
+# Fork-only: validate that the riscv64 prebuilt build works end-to-end on the
+# RISE native runner, the same recipe build.yml uses. Not part of the PR.
+
+on:
+  push:
+    branches: [riscv64-validate]
+
+permissions:
+  contents: read
+
+jobs:
+  native-rise:
+    name: native riscv64 build + smoke (RISE runner)
+    runs-on: ubuntu-24.04-riscv
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Node.js (riscv64 unofficial build)
+        run: |
+          set -e
+          NODE_VER=v20.19.0
+          curl -fsSL -o /tmp/node.tar.xz "https://unofficial-builds.nodejs.org/download/release/${NODE_VER}/node-${NODE_VER}-linux-riscv64.tar.xz"
+          mkdir -p "$HOME/node"
+          tar -xJf /tmp/node.tar.xz -C "$HOME/node" --strip-components=1
+          echo "$HOME/node/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/node/bin:$PATH"
+          node --version
+          npm --version
+      - name: Install build deps (native)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential ninja-build libtbb-dev
+          cmake --version
+      - name: npm ci
+        run: |
+          export PATH="$HOME/node/bin:$PATH"
+          npm ci
+      - name: Build CLI (tsc)
+        run: |
+          export PATH="$HOME/node/bin:$PATH"
+          npm run build
+      - name: Source download + native riscv64 build
+        run: |
+          export PATH="$HOME/node/bin:$PATH"
+          node ./dist/cli/cli.js source download --noUsageExample
+          node ./dist/cli/cli.js source build --ciMode --noUsageExample --arch riscv64 --gpu false
+      - name: Verify artifact
+        run: |
+          set -e
+          NODEFILE=$(find ./llama/localBuilds -name "*.node" | head -1)
+          echo "binding: $NODEFILE"
+          file "$NODEFILE"
+          file "$NODEFILE" | grep -q "UCB RISC-V" && echo "RISE_BUILD_OK: $NODEFILE"
