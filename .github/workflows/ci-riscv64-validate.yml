@@ -78,7 +78,7 @@ jobs:
           ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
         run: |
           export PATH="$HOME/node/bin:$PATH"
-          npm ci
+          npm ci || npm ci || npm ci
       - name: Native riscv64 build (from pre-built dist)
         run: |
           export PATH="$HOME/node/bin:$PATH"
